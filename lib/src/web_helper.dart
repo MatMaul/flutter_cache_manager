@@ -17,6 +17,7 @@ class WebHelper {
   CacheStore _store;
   FileFetcher _fileFetcher;
   Map<String, Future<FileInfo>> _memCache;
+  http.Client httpClient = http.Client();
 
   WebHelper(this._store, this._fileFetcher) {
     _memCache = new Map();
@@ -81,7 +82,11 @@ class WebHelper {
 
   Future<FileFetcherResponse> _defaultHttpGetter(String url,
       {Map<String, String> headers}) async {
-    var httpResponse = await http.get(url, headers: headers);
+    http.Request request = http.Request('GET', Uri.parse(url));
+    request.headers.addAll(headers);
+
+    final httpResponse = await httpClient.send(request);
+
     return new HttpFileFetcherResponse(httpResponse);
   }
 
@@ -96,7 +101,12 @@ class WebHelper {
       if (!(await folder.exists())) {
         folder.createSync(recursive: true);
       }
-      await new File(path).writeAsBytes(response.bodyBytes);
+
+      final file = new File(path);
+      final sink = file.openWrite();
+      await sink.addStream(response.bodyStream);
+      sink.close();
+
       return true;
     }
     if (response.statusCode == 304) {
